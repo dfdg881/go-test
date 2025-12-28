@@ -1,0 +1,53 @@
+name: CGO Build for Linux AMD64
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+        cache: true
+    
+    - name: Install dependencies
+      run: |
+        # 安装系统依赖（根据你的项目需要调整）
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          gcc \
+          libc6-dev
+        # 如果你的项目需要特定库，在这里添加
+        # 例如：sudo apt-get install -y libssl-dev
+    
+    - name: Build with CGO
+      run: |
+        # 创建输出目录
+        mkdir -p output
+        
+        # CGO 构建
+        CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
+        go build -o output/myapp ./cmd/myapp
+        
+        # 验证构建
+        echo "Build completed:"
+        ls -lh output/
+        file output/myapp
+        ldd output/myapp 2>/dev/null || echo "Binary info check"
+    
+    - name: Upload binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: myapp-linux-amd64
+        path: output/
+        retention-days: 30
