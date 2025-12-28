@@ -2,7 +2,7 @@ name: CGO Build for Linux AMD64
 
 on:
   push:
-    branches: [ main ]
+    分支: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -37,7 +37,7 @@ jobs:
         
         # CGO 构建
         CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
-        go build -o output/myapp ./cmd/myapp
+        go build -o output/myapp
         
         # 验证构建
         echo "Build completed:"
