@@ -36,7 +36,7 @@ jobs:
         mkdir -p output
         
         # CGO 构建
-        CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
+        CGO_ENABLED=1 GOOS=linux GOARCH=arm64 \
         go build -o output/myapp
         
         # 验证构建
