@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-arm64:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-arm
     
     steps:
     - name: Checkout code
@@ -27,14 +27,6 @@ jobs:
     
     - name: Build ARM64 CGO binary
       run: |
-        # 设置交叉编译环境
-        export CC=aarch64-linux-gnu-gcc
-        export CXX=aarch64-linux-gnu-g++
-        
-        # 构建
-        CGO_ENABLED=1 \
-        GOOS=linux \
-        GOARCH=arm64 \
         go build -o epg
         
         # 验证
