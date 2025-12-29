@@ -1,4 +1,4 @@
-name: ARM64 Simple Build
+name: Build Musl Static for OpenWrt
 
 on: [push, workflow_dispatch]
 
@@ -14,27 +14,33 @@ jobs:
       with:
         go-version: '1.21'
     
-    - name: Build for OpenWrt ARM64
-      run: |        
-        # 2. 如果有 C 依赖，安装编译器并构建
-        echo "Installing ARM64 compiler..."
+    - name: Install musl cross compiler
+      run: |
         sudo apt-get update
-        sudo apt-get install -y gcc-aarch64-linux-gnu
+        sudo apt-get install -y \
+          gcc-aarch64-linux-musl \
+          musl-tools
+    
+    - name: Build musl static
+      run: |
+        echo "Building musl static binary..."
         
-        echo "Building CGO ARM64 binary..."
-        CC=aarch64-linux-gnu-gcc \
-        CGO_ENABLED=1 GOOS=linux GOARCH=arm64 \
-        go build -ldflags="-s -w" -o epg-cgo-arm64 .
+        CC=aarch64-linux-musl-gcc \
+        CGO_ENABLED=1 \
+        GOOS=linux \
+        GOARCH=arm64 \
+        go build \
+          -ldflags="-s -w -linkmode external -extldflags '-static'" \
+          -tags "osusergo netgo static" \
+          -o epg-openwrt-musl \
+          .
         
-        # 验证
-        echo "Verifying binaries:"
-        file epg-*-arm64
-        echo ""
-        echo "Binary sizes:"
-        ls -lh epg-*-arm64
+        echo "Verifying..."
+        file epg-openwrt-musl
+        ls -lh epg-openwrt-musl
     
     - name: Upload
       uses: actions/upload-artifact@v4
       with:
-        name: epg-arm64-binaries
-        path: epg-*-arm64
+        name: epg-musl-static
+        path: epg-openwrt-musl
