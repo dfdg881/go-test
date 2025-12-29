@@ -1,9 +1,12 @@
-name: Build Musl Static for OpenWrt
+name: Build Static ARM64 for OpenWrt
 
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
-  build:
+  build-static:
     runs-on: ubuntu-latest
     
     steps:
@@ -14,33 +17,40 @@ jobs:
       with:
         go-version: '1.21'
     
-    - name: Install musl cross compiler
+    - name: Install ARM64 cross compiler
       run: |
         sudo apt-get update
-        sudo apt-get install -y \
-          gcc-aarch64-linux-musl \
-          musl-tools
+        sudo apt-get install -y gcc-aarch64-linux-gnu
     
-    - name: Build musl static
+    - name: Build static binary
       run: |
-        echo "Building musl static binary..."
+        echo "Building static ARM64 binary..."
         
-        CC=aarch64-linux-musl-gcc \
+        CC=aarch64-linux-gnu-gcc \
         CGO_ENABLED=1 \
         GOOS=linux \
         GOARCH=arm64 \
         go build \
-          -ldflags="-s -w -linkmode external -extldflags '-static'" \
-          -tags "osusergo netgo static" \
-          -o epg-openwrt-musl \
+          -ldflags="-s -w -extldflags '-static'" \
+          -tags "osusergo netgo" \
+          -o epg-openwrt-arm64 \
           .
         
-        echo "Verifying..."
-        file epg-openwrt-musl
-        ls -lh epg-openwrt-musl
+        echo "Verifying binary..."
+        file epg-openwrt-arm64
+        echo "Size: $(ls -lh epg-openwrt-arm64 | awk '{print $5}')"
+        
+        # 检查是否真的是静态链接
+        echo -e "\nChecking dependencies:"
+        if readelf -d epg-openwrt-arm64 2>/dev/null | grep -q NEEDED; then
+          echo "❌ Still has dynamic dependencies!"
+          readelf -d epg-openwrt-arm64 | grep NEEDED
+        else
+          echo "✅ Fully static binary!"
+        fi
     
     - name: Upload
       uses: actions/upload-artifact@v4
       with:
-        name: epg-musl-static
-        path: epg-openwrt-musl
+        name: epg-static-arm64
+        path: epg-openwrt-arm64
