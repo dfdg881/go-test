@@ -35,7 +35,6 @@ jobs:
         CGO_ENABLED=1 \
         GOOS=linux \
         GOARCH=arm64 \
-        GOARM=8 \
         go build -o epg
         
         # 验证
