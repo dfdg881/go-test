@@ -1,53 +1,48 @@
-name: CGO Build for Linux AMD64
+name: Build ARM64 CGO
 
 on:
   push:
-    分支: [ main ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
-  build:
+  build-arm64:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout
+    - name: Checkout code
       uses: actions/checkout@v4
     
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.21'
-        cache: true
     
-    - name: Install dependencies
+    - name: Install ARM64 cross-compiler
       run: |
-        # 安装系统依赖（根据你的项目需要调整）
         sudo apt-get update
         sudo apt-get install -y \
-          build-essential \
-          gcc \
-          libc6-dev
-        # 如果你的项目需要特定库，在这里添加
-        # 例如：sudo apt-get install -y libssl-dev
+          gcc-aarch64-linux-gnu \
+          g++-aarch64-linux-gnu
     
-    - name: Build with CGO
+    - name: Build ARM64 CGO binary
       run: |
-        # 创建输出目录
-        mkdir -p output
+        # 设置交叉编译环境
+        export CC=aarch64-linux-gnu-gcc
+        export CXX=aarch64-linux-gnu-g++
         
-        # CGO 构建
-        CGO_ENABLED=1 GOOS=linux GOARCH=arm64 \
-        go build -o output/myapp
+        # 构建
+        CGO_ENABLED=1 \
+        GOOS=linux \
+        GOARCH=arm64 \
+        GOARM=8 \
+        go build -o epg
         
-        # 验证构建
-        echo "Build completed:"
-        ls -lh output/
-        file output/myapp
-        ldd output/myapp 2>/dev/null || echo "Binary info check"
+        # 验证
+        file epg
     
-    - name: Upload binary
+    - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: myapp-linux-amd64
-        path: output/
-        retention-days: 30
+        name: myapp-arm64
+        path: epg
