@@ -1,4 +1,4 @@
-name: Build ARM64 CGO
+name: Build for OpenWrt ARM64
 
 on:
   push:
@@ -6,34 +6,87 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-arm64:
-    runs-on: ubuntu-22.04-arm
+  build:
+    runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
     
     - name: Setup Go
       uses: actions/setup-go@v5
       with:
         go-version: '1.21'
     
-    - name: Install ARM64 cross-compiler
+    - name: Install OpenWrt SDK
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          gcc-aarch64-linux-gnu \
-          g++-aarch64-linux-gnu
-    
-    - name: Build ARM64 CGO binary
-      run: |
-        go build -o epg
+        echo "Downloading OpenWrt SDK for ARM64..."
+        # OpenWrt 23.05.0 ARM64 SDK
+        wget -q https://downloads.openwrt.org/releases/23.05.0/targets/armvirt/64/openwrt-sdk-23.05.0-armvirt-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+        tar -xf openwrt-sdk-*.tar.xz
+        mv openwrt-sdk-* openwrt-sdk
         
-        # 验证
-        file epg
+        echo "OpenWrt SDK installed to: $(pwd)/openwrt-sdk"
     
-    - name: Upload artifact
+    - name: Build using OpenWrt toolchain
+      run: |
+        echo "Building with OpenWrt toolchain..."
+        
+        # 使用 OpenWrt 的 musl 工具链
+        TOOLCHAIN_DIR="$(pwd)/openwrt-sdk/staging_dir/toolchain-aarch64_cortex-a53_gcc-12.3.0_musl"
+        export STAGING_DIR="$TOOLCHAIN_DIR"
+        export PATH="$TOOLCHAIN_DIR/bin:$PATH"
+        
+        # 设置编译器
+        export CC="aarch64-openwrt-linux-musl-gcc"
+        export CXX="aarch64-openwrt-linux-musl-g++"
+        
+        echo "Compiler: $(which $CC)"
+        $CC --version
+        
+        # 构建
+        CGO_ENABLED=1 \
+        GOOS=linux \
+        GOARCH=arm64 \
+        go build \
+          -ldflags="-s -w -linkmode=external -extldflags '-static'" \
+          -tags "osusergo netgo static" \
+          -o epg-openwrt-arm64 \
+          .
+        
+        echo "Build completed"
+        file epg-openwrt-arm64
+    
+    - name: Verify OpenWrt binary
+      run: |
+        echo "Verifying binary for OpenWrt..."
+        BINARY="epg-openwrt-arm64"
+        
+        if [ -f "$BINARY" ]; then
+          echo "✅ Binary exists"
+          echo "📄 File info:"
+          file "$BINARY"
+          
+          # 检查是否为 ARM64
+          if file "$BINARY" | grep -q "ARM aarch64"; then
+            echo "✅ Correct: ARM64"
+          else
+            echo "❌ Wrong architecture!"
+          fi
+          
+          # 检查是否静态链接
+          if file "$BINARY" | grep -q "statically linked"; then
+            echo "✅ Static linked (good for OpenWrt)"
+          else
+            echo "⚠️ Not static!"
+          fi
+          
+          echo "📊 Size: $(ls -lh "$BINARY" | awk '{print $5}')"
+        else
+          echo "❌ Binary not found!"
+        fi
+    
+    - name: Upload
       uses: actions/upload-artifact@v4
       with:
-        name: arm64
-        path: epg
+        name: epg-for-openwrt
+        path: epg-openwrt-arm64
