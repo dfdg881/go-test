@@ -1,4 +1,4 @@
-name: Build Static Binary
+name: Build True Static Binary
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-static:
+  build-true-static:
     runs-on: ubuntu-latest
     
     steps:
@@ -17,18 +17,68 @@ jobs:
       with:
         go-version: '1.21'
     
-    - name: Build static binary
+    - name: Install musl for pure static
       run: |
-        echo "Building static binary..."
-        CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
-        go build -ldflags="-s -w -extldflags '-static'" -o epg-static .
+        echo "Installing musl for complete static linking..."
+        sudo apt-get update
+        sudo apt-get install -y musl-tools musl-dev
         
-        echo "Verifying..."
-        file epg-static
-        ls -lh epg-static
+        # 验证安装
+        musl-gcc --version | head -1
     
-    - name: Upload
+    - name: Build with musl (强制静态)
+      run: |
+        echo "Building truly static binary with musl..."
+        
+        # 方法1: 使用 musl 强制静态
+        CC=musl-gcc \
+        CGO_ENABLED=1 \
+        GOOS=linux \
+        GOARCH=amd64 \
+        go build \
+          -ldflags="-s -w -linkmode=external -extldflags '-static'" \
+          -tags "osusergo netgo static" \
+          -o epg-true-static \
+          .
+        
+        echo "✅ Built with musl"
+    
+    - name: Verify true static
+      run: |
+        echo "🔍 Verifying true static binary..."
+        
+        if [ ! -f "epg-true-static" ]; then
+          echo "❌ Binary not found!"
+          exit 1
+        fi
+        
+        echo "📄 File info:"
+        file epg-true-static
+        echo ""
+        
+        echo "🔗 Checking dependencies:"
+        if readelf -d epg-true-static 2>/dev/null; then
+          echo "❌ Still has ELF dynamic section!"
+          readelf -d epg-true-static | head -10
+        else
+          echo "✅ No dynamic section (good!)"
+        fi
+        
+        echo ""
+        echo "🔍 Checking for interpreter:"
+        if readelf -l epg-true-static 2>/dev/null | grep -q "INTERP"; then
+          echo "❌ Has interpreter (not fully static)"
+          readelf -l epg-true-static | grep -A1 INTERP
+        else
+          echo "✅ No interpreter (fully static!)"
+        fi
+        
+        echo ""
+        echo "📊 Size:"
+        ls -lh epg-true-static
+    
+    - name: Upload true static binary
       uses: actions/upload-artifact@v4
       with:
-        name: epg-static-binary
-        path: epg-static
+        name: epg-true-static
+        path: epg-true-static
