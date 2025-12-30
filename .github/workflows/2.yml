@@ -1,0 +1,34 @@
+name: Build Static Binary
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-static:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+    
+    - name: Build static binary
+      run: |
+        echo "Building static binary..."
+        CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
+        go build -ldflags="-s -w -extldflags '-static'" -o epg-static .
+        
+        echo "Verifying..."
+        file epg-static
+        ls -lh epg-static
+    
+    - name: Upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: epg-static-binary
+        path: epg-static
