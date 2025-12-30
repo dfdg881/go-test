@@ -299,5 +299,5 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 	r.GET("/json", handleEPG)
-	r.Run(":27100")
+	r.Run(":9224")
 }
