@@ -46,15 +46,6 @@ jobs:
           echo "=== Found Strings ==="
           cat strings_filtered.txt
 
-      - name: Radare2 Analysis
-        run: |
-          r2 -q -c "aaa; / ${{ inputs.search_string }}" target.so > r2_search.txt || true
-          r2 -q -c "iI" target.so > r2_info.txt
-          r2 -q -c "iE" target.so > r2_exports.txt
-          r2 -q -c "ii" target.so > r2_imports.txt
-          echo "=== Binary Info ==="
-          cat r2_info.txt
-
       - name: Hex Dump Headers
         run: |
           xxd -l 256 target.so > header.txt
